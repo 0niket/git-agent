@@ -1,6 +1,6 @@
 # git-agent
 
-FIXME: description
+![Git agent overview](./resources/images/git_agent_overview.png)
 
 ## Installation
 
@@ -25,7 +25,9 @@ FIXME: listing of options this app accepts.
 ...
 
 ### Any Other Sections
+
 ### That You Think
+
 ### Might be Useful
 
 ## License
