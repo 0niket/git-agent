@@ -50,11 +50,9 @@ FIXME: listing of options this app accepts.
 
 ...
 
-### Any Other Sections
+## TODO
 
-### That You Think
-
-### Might be Useful
+1. Add github actions
 
 ## License
 
