@@ -1,5 +1,31 @@
 # git-agent
 
+Git agent would answer various questions based on the log of commit messages and code diffs. Following are some of the examples:
+
+Code Contribution Analysis: Who are the top contributors to this repository?
+
+Bug Fix Identification: Which commits in the last week addressed reported bugs?
+
+Feature Development Tracking: What features were added or removed in the last month?
+
+Code Quality Metrics: What is the trend of code complexity over the last six months?
+
+Release Note Generation: Generate release notes based on the commits since the last release.
+
+Issue Closure Prediction: Based on past data, when is the estimated time for issue closure?
+
+Code Ownership Identification: Who are the primary maintainers of this specific module or file?
+
+Hotspot Analysis: Identify areas of the codebase that have been frequently modified recently.
+
+Developer Activity Tracking: How active has each developer been in terms of commits and reviews over the past quarter?
+
+## Architecture
+
+For building agent workflow, planning, creating task, execution and feedback are crucial part of the architecture.
+
+For long term memory, a vectorstore would be used.
+
 ![Git agent overview](./resources/images/git_agent_overview.png)
 
 ## Installation
