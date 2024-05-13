@@ -27,9 +27,9 @@
                 "-C"
                 path
                 "log"
+                "-p"
                 (format "--skip=%s" skip)
-                (format "--max-count=%s" max-count)
-                "--name-status")
+                (format "--max-count=%s" max-count))
         commits (if (= 0 (:exit log))
                   (-> log
                       :out
