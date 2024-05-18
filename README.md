@@ -50,6 +50,24 @@ FIXME: listing of options this app accepts.
 
 ...
 
+## Dependencies
+
+### pgvector
+
+pgvector is a postgres plugin. It allows vector embeddings to be
+stored and searched.
+
+```
+$ cd project-root
+$ docker-compose up
+```
+
+```
+$ pgcli -h localhost -p 5432 -U git_agent -d gitagent
+```
+
+[Refer to pgvector docs](https://github.com/pgvector/pgvector?tab=readme-ov-file#postgresapp)
+
 ## TODO
 
 1. Add github actions
