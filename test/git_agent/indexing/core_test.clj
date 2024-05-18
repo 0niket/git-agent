@@ -1,6 +1,7 @@
 (ns git-agent.indexing.core-test
   (:require [clojure.test :refer [deftest testing is]]
-            [git-agent.indexing.core :as indexing]))
+            [git-agent.indexing.core :as indexing]
+            [git-agent.utils :as utils]))
 
 (def repo "/Users/anikethendre/projects/instructor-clj")
 
@@ -15,7 +16,12 @@
     (is (= 10 (:cursor (indexing/git-log repo :skip 5 :max-count 5)))
         "cursor should be 10 i.e. skip 5 commits and take next 5 commits")))
 
-(deftest vector-embedding-test)
+(deftest vector-embedding-test
+  (testing "Text to vector using embedding model"
+    (is (= (-> "resources/test-data/openai-embedding-test-data.edn"
+               utils/load-edn
+               :embedding)
+           (indexing/create-embedding "foo bar")))))
 
 (deftest db-indexing-test)
 

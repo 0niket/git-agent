@@ -1,6 +1,7 @@
 (ns git-agent.indexing.core
   (:require [clojure.java.shell :refer [sh]]
-            [clojure.string :as cs]))
+            [clojure.string :as cs]
+            [wkok.openai-clojure.api :as api]))
 
 (defn git-log
   "Retrieve git log for a given repository path.
@@ -42,3 +43,9 @@
     {:commits commits
      :cursor (+ skip rs-count)
      :next? (= rs-count max-count)}))
+
+(defn create-embedding
+  [text]
+  (-> (api/create-embedding {:model "text-embedding-ada-002" :input text}
+                            {:api-key ""})
+      (get-in [:data 0 :embedding] [])))
