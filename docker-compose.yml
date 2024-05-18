@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: pgvector_container
+    environment:
+      POSTGRES_DB: gitagent
+      POSTGRES_USER: git_agent
+      POSTGRES_PASSWORD: wildmushroom
+    ports:
+      - "5432:5432"
