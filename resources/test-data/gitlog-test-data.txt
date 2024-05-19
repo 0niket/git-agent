@@ -1,0 +1,983 @@
+commit 9260b1f0cc7ac1a35fdf0a1fb9e861eb9ff4569c
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Sat May 18 18:18:56 2024 +0530
+
+    Add information about pgvector in readme file
+    
+    Adding some basic information about pgvector in readme file gives
+    idea about project dependecies
+
+diff --git a/README.md b/README.md
+index 71d9c4f..e571bff 100644
+--- a/README.md
++++ b/README.md
+@@ -50,6 +50,24 @@ FIXME: listing of options this app accepts.
+ 
+ ...
+ 
++## Dependencies
++
++### pgvector
++
++pgvector is a postgres plugin. It allows vector embeddings to be
++stored and searched.
++
++```
++$ cd project-root
++$ docker-compose up
++```
++
++```
++$ pgcli -h localhost -p 5432 -U git_agent -d gitagent
++```
++
++[Refer to pgvector docs](https://github.com/pgvector/pgvector?tab=readme-ov-file#postgresapp)
++
+ ## TODO
+ 
+ 1. Add github actions
+
+commit 1c6c65c98fff25633f46563e7c7d9b5bd5a3ea89
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Sat May 18 18:12:36 2024 +0530
+
+    Add pgvector container to compose file
+    
+    Using pgvector for similarity search simply because I want to
+    try it out.
+
+diff --git a/docker-compose.yml b/docker-compose.yml
+new file mode 100644
+index 0000000..d60631d
+--- /dev/null
++++ b/docker-compose.yml
+@@ -0,0 +1,12 @@
++version: "3.8"
++
++services:
++  pgvector:
++    image: pgvector/pgvector:pg16
++    container_name: pgvector_container
++    environment:
++      POSTGRES_DB: gitagent
++      POSTGRES_USER: git_agent
++      POSTGRES_PASSWORD: wildmushroom
++    ports:
++      - "5432:5432"
+
+commit 13ded75ff31bc7de94baef392daaddff9b2e11a7
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Sat May 18 12:03:09 2024 +0530
+
+    Implement embedding for storing git diffs to vector store
+    
+    Vector embedding converts text to a vector. Embedding is an
+    intermediate step to indexing the diffs.
+    Once diffs are indexed, using similarity search, agents can answer
+    the code and repository related questions.
+
+diff --git a/project.clj b/project.clj
+index 32c5381..fe76f5d 100644
+--- a/project.clj
++++ b/project.clj
+@@ -3,7 +3,8 @@
+   :url "http://example.com/FIXME"
+   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
+             :url "https://www.eclipse.org/legal/epl-2.0/"}
+-  :dependencies [[org.clojure/clojure "1.10.3"]]
++  :dependencies [[org.clojure/clojure "1.10.3"]
++                 [net.clojars.wkok/openai-clojure "0.16.0"]]
+   :main ^:skip-aot git-agent.core
+   :target-path "target/%s"
+   :profiles {:uberjar {:aot :all
+diff --git a/resources/test-data/openai-embedding-test-data.edn b/resources/test-data/openai-embedding-test-data.edn
+new file mode 100644
+index 0000000..0a451a1
+--- /dev/null
++++ b/resources/test-data/openai-embedding-test-data.edn
+@@ -0,0 +1 @@
++{:embedding [-0.016640704 -0.015465903 -0.012528902 -0.02197568 -0.013634596 0.0068449406 -0.02256999 -0.02268056 -0.0072284783 -0.008582954 0.024366744 -0.0033239943 0.007380511 -0.0034259255 -0.023191944 -0.012667114 0.028941555 0.0032721648 0.0036626132 -0.0023755156 -0.020538276 0.011132962 0.0040668827 0.0012957358 -0.027849682 0.0086382385 0.0065996144 -0.018036643 -0.008278888 -0.0032376118 0.0343871 -0.024007393 -0.022348851 0.005272781 -0.02771147 -0.023869181 0.0014045776 -0.009398404 0.016046392 -0.013752076 0.006827664 4.6819253E-4 0.006789656 -0.009723201 -0.0224456 8.0076477E-4 0.010628489 -0.005144935 -0.044614777 0.016543955 0.034635883 -0.0017095074 -0.021561043 -0.0023616946 0.004982536 -0.0033982832 -0.0029767372 1.5851168E-4 0.02924562 0.002741777 -0.021201694 0.022639096 -0.02993668 0.0043882253 0.0027245006 -0.010130927 -0.012148819 0.010324423 -0.004571356 -0.0020835432 1.662861E-4 0.009923609 -0.01858949 -0.008921573 0.035326943 -0.0034518403 -0.0040081427 -9.683466E-4 0.018782986 -9.6143596E-4 0.019861039 -0.020635026 -0.016184604 0.026025286 0.012591097 -0.0041463547 0.010787433 0.023938287 -0.008271977 0.0064372155 0.005462822 0.007048803 0.014747201 0.018326888 -0.010372797 0.02548626 -0.005666685 0.025278943 0.012445974 -0.004875422 -0.020952912 0.010061821 0.0071939253 -0.0044918843 0.007988643 -0.004865056 0.028443992 4.724037E-5 -0.0012179917 -0.022763487 -0.0040081427 0.023813898 0.01262565 -0.035022877 -0.017718755 -0.0063750204 0.03026839 -0.009799218 -0.015521187 -0.02664724 0.0067067286 0.005241683 0.04055135 -0.013752076 0.01695859 -0.0015946189 -0.025859432 -0.004664649 -0.007083356 -0.010255317 0.04572047 0.021104945 0.04348144 -0.0021371003 -0.020095998 0.013897198 -0.037234265 0.006278272 -0.013807361 -0.03109766 0.008265067 0.026757808 0.0042638346 -0.0035693203 -0.010041089 0.027061874 0.032673273 0.021643972 -0.0075947396 -0.005867092 0.008900842 -0.01753908 0.016170783 -0.021699255 0.0048201373 0.018395994 -0.0072422996 0.034884665 -0.0035831414 -0.0038319228 -0.0014287647 -5.744429E-4 0.013606953 -0.016820379 0.013869557 0.037372477 4.7855845E-4 0.010352066 -0.010075642 -0.010393529 0.020289496 0.027048053 -0.023786254 0.00795409 0.0027245006 0.027987894 0.011271174 0.010974019 -0.004968715 -0.005542294 -0.030572455 -0.0013821182 0.023634221 0.01813339 -0.008313441 0.012128088 0.017138265 0.012501259 -0.0030683025 -0.013551669 0.010621578 0.020026892 0.004865056 0.013019553 -0.6970299 -0.017898431 -0.009661007 -0.026854558 0.017082982 0.024850486 0.003811191 -0.0016861842 -0.018782986 6.042448E-4 -0.013800451 0.023468368 0.0054870094 0.016184604 -0.017082982 -0.009564258 4.483246E-4 -0.016765093 -0.026260246 0.035382226 -0.010227675 0.027310656 0.013600043 0.012086624 0.019612258 -0.0047752187 0.010075642 -0.033944823 -0.018064285 -0.01333053 -0.020759415 0.006184979 0.02631553 -0.006385386 0.06291402 0.0070349816 -0.034221247 0.013572401 0.016875664 0.029522045 -0.01717973 -0.011319548 0.015410618 -0.019957786 -0.00543518 0.009398404 0.02537569 0.0042154607 -3.4963273E-4 -0.015355334 3.0860107E-4 -0.009875234 -0.0056632296 0.022003323 -0.014235818 5.7703437E-4 0.028665131 -0.008576044 0.0031028553 0.029079767 0.0028903547 0.009847593 -0.0072630313 -0.0033931003 0.0058290837 4.884924E-4 -0.023399262 0.02478138 0.010704505 -0.0031857826 0.020717952 -6.1677024E-4 -0.032203354 -0.0031477741 0.02957733 0.017760219 0.01905941 -0.031512294 -0.0081199445 0.009128891 0.0119691435 0.005929287 -0.017856967 0.006395752 0.022694381 0.012535812 -0.035603367 0.014705738 0.0025085446 -0.0037800933 0.017981358 0.019750468 -0.0013285611 -0.010061821 -3.120564E-4 0.0046128198 -0.024739916 0.02350983 0.019197622 -0.030655382 -0.004865056 0.009412225 0.005372985 -0.0059569296 -0.009875234 0.020745594 -9.389766E-4 0.009274013 0.03225864 -0.033585474 -0.017359406 0.0053522526 -0.012729309 -0.022390315 0.0011799834 -0.030351317 0.01192768 -3.7986654E-4 0.005210586 -0.013634596 0.018782986 -0.023910645 0.013351262 -0.0010080825 0.021381369 -3.150258E-5 0.002722773 -0.0112435315 -0.018630954 -0.011858574 -0.0026502118 0.0060502226 0.022293568 -0.0060502226 0.009550437 0.0020472626 0.014595169 0.0045437138 0.010780522 -0.0080162855 -0.040413138 -0.0076983985 -0.0016490398 -0.015617936 -0.020662667 -0.015106552 -0.028139926 -9.26883E-4 0.0056908717 0.01484395 -0.004381315 0.0042396476 -0.017801683 0.018202497 0.009709381 -0.01962608 -0.018299244 -0.02722773 -0.02197568 -0.0019487867 0.0059672953 0.019556973 -0.027600901 0.017041517 0.012197194 -0.005891279 0.007387422 0.0042983876 -0.006461403 -0.032756202 0.012750041 -0.015977286 -0.005414448 0.002242487 -0.016557775 0.008037018 -0.01788461 0.0086727915 -0.023343977 -0.008817914 0.014007769 0.0078780735 -0.015880538 -0.0071386406 0.015963465 0.0041947286 -0.0069002253 0.022874057 0.0011808473 0.0021699257 0.002565557 -0.006489045 -0.0044227783 0.011146784 -0.021077303 -0.01251508 0.005808352 0.009405315 -0.010828896 0.02782204 0.024076499 0.014104516 0.021035839 -0.033640757 0.025209837 -0.024422029 0.0034224703 -0.03333669 0.022169176 0.02140901 0.0081890505 -0.019418761 -0.005518107 0.0040599722 0.0011514772 0.017926073 0.015341512 0.02385536 0.016239889 -0.0017336946 -0.0027884236 0.011685809 -0.006589249 0.017400868 -9.502063E-4 -0.0033239943 0.006858762 0.046577383 0.00911507 -0.015452081 -0.0024774468 0.0077882363 -0.0055250176 0.01661306 -0.005566481 -0.010193122 0.010310602 -0.010365887 0.023247229 0.0017190095 1.0932771E-4 -4.3687894E-4 0.044725347 -0.0048201373 0.005753067 0.0021854744 0.011858574 -0.021906573 -0.0051863985 -0.00497217 -0.02957733 0.0062437193 -0.028250497 0.01988868 0.024809022 -0.004782129 0.0058256285 0.009495152 0.0073943324 0.027531795 0.021892752 0.002024803 0.011734184 -0.0022632186 -0.014208175 -0.0022252104 -0.0011825749 -0.00520022 -0.012204104 -0.0087073445 -0.009688648 0.020082178 0.012162641 0.0042292816 0.016654525 -0.0062160767 0.002800517 0.011506134 0.0048892433 -0.0041809077 -0.011741094 -0.03239685 0.0056563187 -0.008935395 -0.0035088526 9.009683E-4 -0.043536723 -0.003213425 0.017939895 -0.0044953395 0.0052658706 0.023205765 -0.0014097606 -0.010676864 -0.0020956367 0.012466706 0.0039079394 -0.01694477 -0.019570794 -0.00567014 -0.001858949 -0.018962663 -0.013219961 0.0089146625 0.031844005 -0.011748005 0.0029715542 -0.023426903 0.011734184 0.0021509214 0.00911507 0.009536616 -0.013123212 -0.005563026 0.014954519 -0.0062713614 -0.010580115 -0.0035485886 0.023122838 0.016668346 -0.005131114 -0.009764665 -0.008562222 0.009163444 0.03963915 0.015866717 0.0064475816 0.027020412 -0.005459367 0.01239069 -0.034221247 -0.014166712 0.017497616 -0.0016766821 -0.011015482 -0.023012267 0.009681738 -0.016074035 0.03925216 -0.009640275 0.011202068 -0.013517116 0.0343871 -0.016101677 -0.0045989985 0.005027455 0.010220764 -2.5590783E-4 0.011754915 -0.0062506297 -0.0076154713 0.03253506 0.0022476697 -0.037013125 0.021326084 0.010144748 -0.002442894 0.013600043 -9.95989E-4 0.012985 0.0014676368 -0.011036214 0.03328141 0.0037697274 0.017677292 0.0118102 5.49392E-4 -0.0069036805 0.0168342 0.007345958 -0.0036868004 0.010711417 0.015963465 0.004080704 -0.009764665 0.010628489 0.008513848 -0.00689677 -0.0032168801 0.015148016 0.0043709488 -0.011153694 0.012432153 -0.020192748 -0.014083785 -0.023371618 0.021837467 -0.016502492 -0.0029784648 -0.029383833 -0.011001661 -0.013026464 -0.010047999 -0.002093909 0.0014296286 2.5677166E-4 -0.008237424 0.0054766433 0.013427279 -0.0076914877 0.008541491 8.357496E-4 0.016585419 0.007850432 -0.008679703 -0.02327487 -0.00876263 -0.005625221 -0.001706916 0.036211498 0.022735845 -0.0072422996 -0.007518723 -0.010580115 0.013710612 -4.5869048E-4 0.0062713614 -0.018009 0.005366074 -0.030959448 0.018243961 0.010953287 -0.010794343 6.871719E-4 -0.0070453477 -0.023938287 0.003133953 -0.012943537 0.024021214 0.0059327423 0.025652114 0.0115890615 -0.02630171 -0.021726899 0.02852692 -0.00520713 0.028236676 0.0028247042 0.008486206 0.0025171828 0.0030372047 0.040109072 -0.012646382 -0.040191997 -0.016060214 -0.014194354 0.015479724 0.022127712 0.008679703 0.0010970563 0.0049307067 -0.025541544 -0.007180104 -0.019667542 -0.011271174 0.006817298 -0.0088801095 -0.023537474 -0.02080088 -0.023551295 -0.021782184 0.0045264373 -0.0027987894 -0.0068449406 -0.02501634 -0.0030596643 0.005334976 -0.02326105 -0.033170838 -0.029052125 -0.010352066 0.0084309215 0.0021526492 0.0054075373 -0.010683774 0.029383833 -0.004080704 0.013282157 0.0013579312 -8.353177E-4 0.0017544263 -0.0152309425 0.021339905 0.024739916 0.02384154 0.02232121 0.016461028 -0.017221194 -0.011374833 -0.014802486 -0.014097606 -0.011976054 -0.024822842 0.02572122 0.020510634 0.020745594 -9.4243186E-4 0.0046128198 -0.0013881649 0.021851288 -0.028361065 -0.0063681095 -0.008410189 -0.0032376118 0.011119141 -0.0115890615 -0.020621205 0.013005733 0.011188247 0.005072374 0.007097177 -0.0020438074 -1.7665199E-4 -0.008382547 0.023772433 0.003821557 0.023827719 0.003997777 0.0041083465 -0.0073943324 -0.023717148 0.013185408 -0.022846414 0.01028987 0.0112089785 0.006958965 -0.0069002253 -0.026453743 -0.0019556973 0.037234265 0.001408033 -0.011754915 0.020856164 -0.024297638 -0.0184651 -0.03051717 -0.012376869 -0.027974073 -0.0016490398 0.005241683 -0.017926073 0.02080088 -0.005998393 -0.018506562 0.01567322 -0.008209783 0.019543152 -0.010794343 0.031982217 0.018202497 0.009377672 -0.012204104 0.023413083 0.013572401 0.00666181 0.013143945 0.020317137 0.0022545804 -0.014443136 0.010372797 0.022652918 -0.014132159 -0.04547169 0.02619114 0.02597 0.011029303 -0.018091928 0.0073943324 -0.03717898 0.028209032 0.016419565 -0.010144748 -0.01180329 -0.012591097 -0.049175765 0.009930519 -0.037206624 0.011568329 0.0025534634 -0.027186265 -0.01426346 -0.021367548 -0.013517116 0.0044987947 -0.0071040876 0.02292934 0.015410618 0.011789468 0.0029888307 -0.004246558 -0.032452136 -0.014553705 0.015410618 0.022860235 -0.010213854 -0.024739916 -7.3597796E-4 0.0028091553 0.0064337603 -0.025638293 -0.013309798 -0.008161408 -0.01835453 -0.0064130286 -0.007670756 0.0155764725 -0.03753833 -0.010255317 -0.012542723 -0.0012188555 -0.02722773 -0.004782129 0.02139519 0.009197997 -0.01437403 5.4420903E-4 0.01391102 0.009550437 0.014166712 -0.027048053 0.013765898 0.015410618 -0.027932609 0.016336637 -0.008665881 0.014816307 -0.00829962 -0.0037386299 -0.010517919 -0.024021214 0.0028886271 -0.02630171 -0.005625221 -0.021201694 0.0023945197 0.025458617 0.009446778 -0.0088801095 0.007926448 0.0030199282 0.0045437138 -0.039113946 0.0034449296 0.004253469 -0.026329352 0.005939653 -0.0038768416 -0.013026464 0.004557535 0.0034829378 0.007518723 0.015452081 -0.030351317 0.008341083 3.060096E-4 0.020413887 -0.026246425 -0.024007393 -0.02561065 1.7092915E-4 -0.030074893 0.014857771 -0.018506562 -0.00461973 -0.0034950315 0.014318745 -0.011941502 0.023053732 -0.004979081 -0.015327691 0.0015237853 -0.008451653 -0.014304924 -0.015217122 -0.011132962 0.00467847 0.014277281 -0.015175658 -0.008265067 0.009716291 -0.01870006 0.0037835487 -0.01823014 0.010808164 0.014940698 -0.01999925 -0.020317137 0.023316335 -0.0041981842 0.02104966 -0.022583812 -0.020869985 0.016668346 0.015797611 0.014636632 -0.01414598 -0.017442333 -0.030102534 0.026674882 0.00923946 0.0208147 0.016461028 -0.014581347 -0.0063404674 -0.013371994 -0.00420855 0.018064285 -0.011319548 0.0030683025 -0.0068794936 0.0023115927 0.005504286 0.007283763 -0.013371994 0.014304924 -0.006855306 -0.010061821 -0.0060156696 0.02149194 -0.003787004 0.0069624204 -0.020165104 0.027200086 -0.014830128 -0.013081749 0.029991966 0.009073606 -0.016792737 -0.021699255 5.355708E-4 -0.016032571 -0.0082581565 -0.0011316093 -0.027863503 -0.0017492434 -0.015728505 0.020759415 -0.0045437138 0.012604918 -0.013828093 -0.023565115 -2.971554E-4 0.021326084 0.010600847 -0.018796807 -0.0056390422 0.012376869 0.008797183 -0.0030043796 -0.00935003 -0.008831736 -0.0066065253 0.004581722 0.018782986 -0.013517116 -0.013517116 0.011540687 0.026412278 -0.008610597 0.012763862 0.19736648 -0.0035330397 4.8719667E-4 0.02233503 -0.010573205 -0.004813227 0.022514706 -5.6062173E-4 -0.01099475 0.00994434 -0.0061331494 0.017829325 -0.008251246 0.0029110864 -0.012950447 -0.008030107 -0.033170838 -0.0065374193 -0.029466761 -0.029604971 0.014360208 -0.009495152 5.4161757E-4 0.007871163 0.031125301 -1.0894979E-4 -0.007221568 -0.010649221 0.027628543 0.027628543 0.001928055 -0.022500884 -0.008859377 0.0015281044 -0.024961054 0.012238657 -0.00865206 -0.01309557 0.02114641 -0.0020990921 0.0024809022 -1.284938E-4 0.0033274496 -0.0069416887 -0.0114508495 0.006095141 0.006585793 -0.0055906684 0.01099475 0.017552901 -0.034525312 -9.018321E-4 0.014512241 0.014691916 0.004757942 0.0010901458 0.01333053 0.015714685 -0.0041705417 -0.003952858 0.0051898537 0.04464242 -0.0077951467 0.029466761 -0.029162694 -0.015977286 0.0056183105 0.012570365 0.0039424924 -0.0056390422 -0.012342316 -0.012798415 0.0015531554 4.8633284E-4 -0.015327691 -0.033060268 0.016391922 0.020717952 -0.0082581565 0.017000055 -0.012466706 -0.014664275 -8.7548554E-4 0.009674828 -0.005960385 -0.032230996 0.021298442 0.03706841 -0.0013225144 -0.028913913 -0.0070004286 -3.9347177E-4 -0.0119691435 -0.0018416726 -0.008817914 0.018188676 -0.0336684 0.014857771 0.005096561 0.013143945 -0.030931806 -0.0196399 0.017456153 0.0064717685 -0.019501688 -0.0067032734 0.0021301897 0.016875664 -0.0013562035 -0.007974822 0.0020766326 -0.009343119 -0.0031719613 -0.007656935 0.02816757 -0.024629347 -0.023565115 0.008506938 0.011824021 -0.00842401 0.017345583 -0.0020420796 0.007857342 0.0058532706 -0.012494349 -0.0143325655 -0.025168372 -0.011837843 0.0068449406 -0.039445654 1.6439648E-5 -0.012722398 0.016378101 -0.009184175 -0.016986232 0.0036798897 0.0055457493 -0.017055338 9.5625303E-4 -0.0038388334 0.0025759228 0.014360208 -0.0062160767 0.014802486 0.005974206 -0.009502063 0.035492796 -0.0036971662 -0.009039053 -0.014705738 -0.027531795 -5.14839E-4 -0.020883806 -0.020842344 0.023095196 -0.017469974 -0.009384583 -0.03988793 0.010925644 -0.0091910865 -0.020040713 -0.012563455 0.022113891 -0.008686613 -0.03225864 -0.012404511 -0.18221846 0.019930145 0.008368726 -0.009218728 0.03051717 -3.7943464E-4 0.02150576 0.009951252 -0.0049929023 0.0150927305 -0.009674828 -0.023399262 -0.03214807 -0.018340709 -0.00312877 0.008078481 0.016972411 -0.009025232 0.030931806 0.010911823 0.026384637 -0.009737023 0.026384637 -0.0010763246 0.014774844 0.019322013 -0.008624418 0.030544812 0.0022027509 -0.0024359834 -0.012784594 -0.0013035103 0.017732577 -0.0076154713 -0.0028799889 -0.009253281 0.022196818 -0.017760219 0.0010314058 0.0066790865 0.0067274603 0.035409868 -0.0013864373 -0.010483366 0.015977286 0.004640462 0.04035785 0.017387047 0.0042672902 0.0032410673 -0.011063856 -0.023924466 0.012674024 3.1939888E-4 -0.011886217 -0.008341083 -0.004315664 0.0035693203 4.552352E-4 0.0031823271 -0.0019211443 -0.031622864 0.0074634384 -0.016640704 -4.3493533E-4 -0.016032571 -0.03156758 0.021381369 -0.0072768526 -0.0033568197 0.00444351 -0.0011126052 0.03322612 -0.022279745 0.0033931003 -0.004281111 -0.029273264 9.745013E-5 0.009460599 -0.013987036 0.007940269 0.04279038 -0.011229711 -0.007415064 0.0028920823 0.02653667 6.9624203E-4 -0.003987411 -0.003384462 -0.020289496 0.013005733 -0.009737023 -0.0153000485 -0.030793594 0.004512616 0.009889056 -0.0055111963 0.011029303 -0.0010884181 3.1896698E-4 0.004968715 0.0033084454 -0.04165704 0.01600493 0.039556224 0.013689881 -0.003977045 0.02186511 0.026840735 0.009508973 -0.03142937 0.005331521 0.02957733 0.009267103 -0.003384462 0.008209783 0.012114266 -0.012328494 0.0029767372 0.0076292926 0.035216372 -0.006126239 -0.007919538 -0.0018606767 -0.0010581843 7.1740575E-4 -0.074966095 -0.016571598 0.001516011 0.025679756 -9.1392564E-4 -0.005563026 0.0010840989 0.03388954 -0.0343871 0.031650506 -0.017248835 -0.03322612 0.0046266406 -0.024532598 0.033502545 0.026122034 -0.0012300853 -8.906024E-4 -0.019335834 0.025430975 -0.0030700301 -0.0067723794 -0.007926448 0.0012223108 -0.004360583 0.0075670974 -0.018174855 0.028361065 0.0058740024 -0.0017932984 -0.0057945307 -0.008023196 0.029743183 -0.024891948 0.0047994056 0.0037489957 -0.004080704 -0.013102481 0.024560241 -0.022238282 -0.0052935127 0.0196399 -0.010075642 -0.009080517 0.010241496 0.008078481 -0.0062748166 0.015410618 0.010566294 -0.019004125 -0.05202293 -0.016765093 -0.024007393 -0.01836835 0.053045698 -0.024366744 0.0033689132 0.01554883 -0.011229711 0.0144016715 -0.0072906734 -0.0119691435 -0.012356137 0.035022877 0.026578134 0.00969556 -0.009025232 1.363762E-4 0.027435048 -0.009322387 -0.0041290782 0.010262228 -0.032065142 0.03259035 -0.005459367 -0.0054870094 -0.010621578 -0.01075288 9.873507E-4 -0.027061874 -7.412689E-5 -0.027393583 -0.019764291 -0.005449001 0.010462635 0.014484599 0.026909841 0.022431778 0.01939112 -0.032452136 0.0017146905 0.027987894 0.008278888 -0.024933413 -9.648913E-4 -1.9368552E-5 0.015258585 -0.008237424 -0.0022787675 0.012238657 -0.028388709 -0.027531795 -0.045609903 0.028775701 -0.003374096 -0.006596159 -0.00257074 -0.010151658 0.016474849 -0.005694327 -0.010649221 0.0043433066 -0.034829378 0.0069969734 -0.018451279 -0.020856164 -0.0345806 -0.0146780955 0.025417155 0.002221755 0.022169176 0.0011411114 0.0062402636 -1.8302268E-4 0.020856164 -0.03015782 -0.028278138 -0.0022096615 -0.023523653 0.015562651 -0.025278943 -0.025237478 0.025652114 -0.028361065 -0.016046392 0.0071662827 0.003173689 -0.011119141 0.00146159 -0.0036176944 0.02418707 0.0040357853 -0.015991108 -0.03424889 0.011699631 -0.01016548 4.4314165E-4 0.010110195 -0.01356549 -0.01626753 0.04104891 -7.1913336E-4 0.010345154 0.020400064 -0.0034224703 -0.0027832405 -4.2165404E-5 -0.028582204 0.012777683 1.5926753E-4 -0.0113471905 -0.02924562 0.0037489957 0.019861039 0.012991911 0.0035865968 -0.016972411 0.006288638 -0.013157765 -0.004609364 0.019736648 -0.02163015 -0.029079767 0.018796807 -0.0083618155 0.0014831856 0.009923609 -0.005735791 -0.012604918 0.0042638346 -0.01146467 0.024560241 0.027504152 -0.010656131 -0.0059534744 0.012770772 0.020524455 0.014816307 0.0055492045 -0.014788665 0.0012093534 0.015880538 -0.025209837 0.0038664758 -0.012881341 0.04113184 0.0026450288 0.00549392 -0.011678899 -0.0025931993 0.026605776 -4.3866057E-6 0.0072975843 -0.010587025 0.009135801 -0.0037731826 -0.00695551 -0.022625275 -0.015479724 -0.03134644 -0.007449617 0.008831736 0.01648867 -0.010649221 -0.006848396 0.018437456 0.007048803 1.7891952E-4 -1.5376066E-4 0.0023271416 -0.016046392 0.017221194 0.019736648 0.023205765 0.027614722 -0.0076845773 -0.0067032734 0.0040392405 3.697166E-4 -0.0041083465 -0.004744121 -0.017138265 0.006160792 -0.022155356 -0.021063482 -0.02666106 -0.020040713 0.0060847756 0.023413083 0.010338244 -0.0065754275 0.06656282 0.013855735 -0.015023625 0.0028782613 0.006264451 0.019418761 0.017926073 0.005438635 -0.006724005 -0.025223657 0.03460824 0.0041463547 -0.004571356 -0.00806466 0.0036004179 -0.00549392 -0.01636428 0.01753908 -0.017608186 -0.0043294854 0.0049168854 0.009460599 0.0155073665 -0.013109392 -0.011409386 0.0015332873 -2.1930329E-4 -0.0038250121 -0.005210586 -0.047959503 -0.0045955433 -0.0012620467 -0.017221194 -0.021381369 0.028692774 -0.014982161 -0.014304924 0.0083963685 0.0045057056 0.022625275 -0.017718755 0.011616704 -0.019681364 -0.020358602 0.00391485 0.004374404 -0.016903305 0.005379895 -0.020897627]}
+\ No newline at end of file
+diff --git a/src/git_agent/indexing/core.clj b/src/git_agent/indexing/core.clj
+index 5dbd1d2..6fcfbff 100644
+--- a/src/git_agent/indexing/core.clj
++++ b/src/git_agent/indexing/core.clj
+@@ -1,6 +1,7 @@
+ (ns git-agent.indexing.core
+   (:require [clojure.java.shell :refer [sh]]
+-            [clojure.string :as cs]))
++            [clojure.string :as cs]
++            [wkok.openai-clojure.api :as api]))
+ 
+ (defn git-log
+   "Retrieve git log for a given repository path.
+@@ -41,4 +42,10 @@
+         rs-count (count commits)]
+     {:commits commits
+      :cursor (+ skip rs-count)
+-     :next? (= rs-count max-count)}))
+\ No newline at end of file
++     :next? (= rs-count max-count)}))
++
++(defn create-embedding
++  [text]
++  (-> (api/create-embedding {:model "text-embedding-ada-002" :input text}
++                            {:api-key ""})
++      (get-in [:data 0 :embedding] [])))
+\ No newline at end of file
+diff --git a/src/git_agent/utils.clj b/src/git_agent/utils.clj
+new file mode 100644
+index 0000000..1c1240c
+--- /dev/null
++++ b/src/git_agent/utils.clj
+@@ -0,0 +1,14 @@
++(ns git-agent.utils
++  (:require [clojure.java.io :as io]
++            [clojure.edn :as edn]))
++
++(defn load-edn
++  "Load edn from an io/reader source (filename or io/resource)."
++  [source]
++  (try
++    (with-open [r (io/reader source)]
++      (edn/read (java.io.PushbackReader. r)))
++    (catch java.io.IOException e
++      (printf "Couldn't open '%s': %s\n" source (.getMessage e)))
++    (catch RuntimeException e
++      (printf "Error parsing edn file '%s': %s\n" source (.getMessage e)))))
+\ No newline at end of file
+diff --git a/test/git_agent/indexing/core_test.clj b/test/git_agent/indexing/core_test.clj
+index 8e13b88..bc3fbf6 100644
+--- a/test/git_agent/indexing/core_test.clj
++++ b/test/git_agent/indexing/core_test.clj
+@@ -1,6 +1,7 @@
+ (ns git-agent.indexing.core-test
+   (:require [clojure.test :refer [deftest testing is]]
+-            [git-agent.indexing.core :as indexing]))
++            [git-agent.indexing.core :as indexing]
++            [git-agent.utils :as utils]))
+ 
+ (def repo "/Users/anikethendre/projects/instructor-clj")
+ 
+@@ -15,7 +16,12 @@
+     (is (= 10 (:cursor (indexing/git-log repo :skip 5 :max-count 5)))
+         "cursor should be 10 i.e. skip 5 commits and take next 5 commits")))
+ 
+-(deftest vector-embedding-test)
++(deftest vector-embedding-test
++  (testing "Text to vector using embedding model"
++    (is (= (-> "resources/test-data/openai-embedding-test-data.edn"
++               utils/load-edn
++               :embedding)
++           (indexing/create-embedding "foo bar")))))
+ 
+ (deftest db-indexing-test)
+ 
+
+commit 71ef20247f3b77ea76b9e504960d8af5474c0621
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Mon May 13 17:05:58 2024 +0530
+
+    Add TODO section to the readme file
+    
+    TODO section in readme file will help document pending items
+    in repository only rather than going for some external tool.
+    Eventually, TODO section can be converted into an org file.
+
+diff --git a/README.md b/README.md
+index 9e5a931..71d9c4f 100644
+--- a/README.md
++++ b/README.md
+@@ -50,11 +50,9 @@ FIXME: listing of options this app accepts.
+ 
+ ...
+ 
+-### Any Other Sections
++## TODO
+ 
+-### That You Think
+-
+-### Might be Useful
++1. Add github actions
+ 
+ ## License
+ 
+
+commit 8ebbcb45dadc60c30613208fa800bc4c6bbab7ec
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Mon May 13 17:02:14 2024 +0530
+
+    Use -p option in git-log function
+    
+    -p option adds code diff to the git log. By documenting actual changes
+    in DB, I wish agent will be able to answer some code related
+    questions as well.
+
+diff --git a/src/git_agent/indexing/core.clj b/src/git_agent/indexing/core.clj
+index f2d1774..5dbd1d2 100644
+--- a/src/git_agent/indexing/core.clj
++++ b/src/git_agent/indexing/core.clj
+@@ -27,9 +27,9 @@
+                 "-C"
+                 path
+                 "log"
++                "-p"
+                 (format "--skip=%s" skip)
+-                (format "--max-count=%s" max-count)
+-                "--name-status")
++                (format "--max-count=%s" max-count))
+         commits (if (= 0 (:exit log))
+                   (-> log
+                       :out
+
+commit dc1b6fdbd391f77f62abca1f738e1bdc22cd0578
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Mon May 13 16:52:33 2024 +0530
+
+    Update README with examples and architecture overview
+    
+    With examples, it is easier to understand how the project could be
+    used.
+    
+    With architecture overview, it is easier to understand different
+    modules of the system. And we can build those modules in parts
+    to build the complete agent.
+
+diff --git a/README.md b/README.md
+index 2f014ad..9e5a931 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,31 @@
+ # git-agent
+ 
++Git agent would answer various questions based on the log of commit messages and code diffs. Following are some of the examples:
++
++Code Contribution Analysis: Who are the top contributors to this repository?
++
++Bug Fix Identification: Which commits in the last week addressed reported bugs?
++
++Feature Development Tracking: What features were added or removed in the last month?
++
++Code Quality Metrics: What is the trend of code complexity over the last six months?
++
++Release Note Generation: Generate release notes based on the commits since the last release.
++
++Issue Closure Prediction: Based on past data, when is the estimated time for issue closure?
++
++Code Ownership Identification: Who are the primary maintainers of this specific module or file?
++
++Hotspot Analysis: Identify areas of the codebase that have been frequently modified recently.
++
++Developer Activity Tracking: How active has each developer been in terms of commits and reviews over the past quarter?
++
++## Architecture
++
++For building agent workflow, planning, creating task, execution and feedback are crucial part of the architecture.
++
++For long term memory, a vectorstore would be used.
++
+ ![Git agent overview](./resources/images/git_agent_overview.png)
+ 
+ ## Installation
+
+commit 0f7aa57e81b2a1bc2e0582b3932675563110c456
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Sat May 11 18:55:45 2024 +0530
+
+    Show architecture diagram for the agent workflow in readme
+    
+    High level architecture diagram is important to give direction
+    to code changes.
+
+diff --git a/README.md b/README.md
+index adc6eff..2f014ad 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,6 @@
+ # git-agent
+ 
+-FIXME: description
++![Git agent overview](./resources/images/git_agent_overview.png)
+ 
+ ## Installation
+ 
+@@ -25,7 +25,9 @@ FIXME: listing of options this app accepts.
+ ...
+ 
+ ### Any Other Sections
++
+ ### That You Think
++
+ ### Might be Useful
+ 
+ ## License
+diff --git a/resources/images/git_agent_overview.png b/resources/images/git_agent_overview.png
+new file mode 100644
+index 0000000..c7dcefc
+Binary files /dev/null and b/resources/images/git_agent_overview.png differ
+
+commit c607629e491346374d57d981c81dfd4cf8973696
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Sat May 11 18:45:11 2024 +0530
+
+    Implement functionality to read git log
+    
+    Retrieves git log for given repository. This is a required step
+    for indexing documents in db.
+    
+    Next steps will be:
+    1. vector embedding each commit message using embedding model
+    2. indexing embedded documents in db.
+    
+    Both the steps will be performed in iteration where chunk of commits
+    will be fetched and these to operations will be performed on it.
+
+diff --git a/.gitignore b/.gitignore
+index 4999250..b8bc9d9 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -12,4 +12,5 @@ pom.xml.asc
+ .hgignore
+ .hg/
+ .clj-kondo
+-.lsp
+\ No newline at end of file
++.lsp
++.calva
+\ No newline at end of file
+diff --git a/src/git_agent/indexing/core.clj b/src/git_agent/indexing/core.clj
+new file mode 100644
+index 0000000..f2d1774
+--- /dev/null
++++ b/src/git_agent/indexing/core.clj
+@@ -0,0 +1,44 @@
++(ns git-agent.indexing.core
++  (:require [clojure.java.shell :refer [sh]]
++            [clojure.string :as cs]))
++
++(defn git-log
++  "Retrieve git log for a given repository path.
++  
++  Arguments:
++    - path: A string representing the path to the git repository.
++    - :max-count (optional, default 30): Maximum number of commits to return.
++    - :skip (optional, default 0): Number of commits to skip.
++  
++  Returns a map containing:
++    - :commits: A sequence of maps, each representing a commit.
++    - :cursor: The number of commits skipped plus the count of commits returned.
++    - :next?: A boolean indicating if there are more commits to fetch.
++  
++  If an exception occurs during the execution of git log command,
++  a custom exception is thrown with the following structure:
++    {:type :git-log-exception, :err <error message>}
++  
++  Example:
++    (git-log \"/path/to/repository\" :max-count 10 :skip 5)
++  "
++  [path & {:keys [max-count skip] :or {max-count 30 skip 0}}]
++  (let [log (sh "git"
++                "-C"
++                path
++                "log"
++                (format "--skip=%s" skip)
++                (format "--max-count=%s" max-count)
++                "--name-status")
++        commits (if (= 0 (:exit log))
++                  (-> log
++                      :out
++                      (cs/split #"commit ")
++                      rest)
++                  (throw (ex-info "git log caused an exception"
++                                  {:type :git-log-exception
++                                   :err (:err log)})))
++        rs-count (count commits)]
++    {:commits commits
++     :cursor (+ skip rs-count)
++     :next? (= rs-count max-count)}))
+\ No newline at end of file
+diff --git a/test/git_agent/indexing/core_test.clj b/test/git_agent/indexing/core_test.clj
+new file mode 100644
+index 0000000..8e13b88
+--- /dev/null
++++ b/test/git_agent/indexing/core_test.clj
+@@ -0,0 +1,22 @@
++(ns git-agent.indexing.core-test
++  (:require [clojure.test :refer [deftest testing is]]
++            [git-agent.indexing.core :as indexing]))
++
++(def repo "/Users/anikethendre/projects/instructor-clj")
++
++(deftest read-git-log-test
++  (testing "Read git log"
++    (is (= [:commits :cursor :next?] (keys (indexing/git-log repo)))
++        "git-log should return a map with list of commits & cursor")
++    (is (= 5 (-> (indexing/git-log repo :max-count 5)
++                 :commits
++                 count))
++        "Number of commits returned should respect max-count param")
++    (is (= 10 (:cursor (indexing/git-log repo :skip 5 :max-count 5)))
++        "cursor should be 10 i.e. skip 5 commits and take next 5 commits")))
++
++(deftest vector-embedding-test)
++
++(deftest db-indexing-test)
++
++(deftest similarity-search-test)
+\ No newline at end of file
+
+commit eb3324880a315159edb2fffa82fe5e5c8bf47fde
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Fri May 10 19:40:12 2024 +0530
+
+    Add VSCode generated directories to gitignore
+    
+    VSCode generates files because of lsp, and clj-kondo plugins.
+    These generated files are not for tracking.
+
+diff --git a/.gitignore b/.gitignore
+index d956ab0..4999250 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -11,3 +11,5 @@ pom.xml.asc
+ /.prepl-port
+ .hgignore
+ .hg/
++.clj-kondo
++.lsp
+\ No newline at end of file
+
+commit e480232232c95ad834feff54dd60dde82e80dbff
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Fri May 10 19:35:48 2024 +0530
+
+    Initialise a clojure project
+
+diff --git a/.gitignore b/.gitignore
+index a4cb69a..d956ab0 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,14 +1,13 @@
++/target
++/classes
++/checkouts
++profiles.clj
+ pom.xml
+ pom.xml.asc
+ *.jar
+ *.class
+-/lib/
+-/classes/
+-/target/
+-/checkouts/
+-.lein-deps-sum
+-.lein-repl-history
+-.lein-plugins/
+-.lein-failures
+-.nrepl-port
+-.cpcache/
++/.lein-*
++/.nrepl-port
++/.prepl-port
++.hgignore
++.hg/
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+new file mode 100644
+index 0000000..f7f88ad
+--- /dev/null
++++ b/CHANGELOG.md
+@@ -0,0 +1,24 @@
++# Change Log
++All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
++
++## [Unreleased]
++### Changed
++- Add a new arity to `make-widget-async` to provide a different widget shape.
++
++## [0.1.1] - 2024-05-10
++### Changed
++- Documentation on how to make the widgets.
++
++### Removed
++- `make-widget-sync` - we're all async, all the time.
++
++### Fixed
++- Fixed widget maker to keep working when daylight savings switches over.
++
++## 0.1.0 - 2024-05-10
++### Added
++- Files from the new template.
++- Widget maker public API - `make-widget-sync`.
++
++[Unreleased]: https://sourcehost.site/your-name/git-agent/compare/0.1.1...HEAD
++[0.1.1]: https://sourcehost.site/your-name/git-agent/compare/0.1.0...0.1.1
+diff --git a/LICENSE b/LICENSE
+index 76b773c..2315126 100644
+--- a/LICENSE
++++ b/LICENSE
+@@ -1,21 +1,280 @@
+-MIT License
+-
+-Copyright (c) 2024 Aniket Hendre
+-
+-Permission is hereby granted, free of charge, to any person obtaining a copy
+-of this software and associated documentation files (the "Software"), to deal
+-in the Software without restriction, including without limitation the rights
+-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-copies of the Software, and to permit persons to whom the Software is
+-furnished to do so, subject to the following conditions:
+-
+-The above copyright notice and this permission notice shall be included in all
+-copies or substantial portions of the Software.
+-
+-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+-SOFTWARE.
++Eclipse Public License - v 2.0
++
++    THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS ECLIPSE
++    PUBLIC LICENSE ("AGREEMENT"). ANY USE, REPRODUCTION OR DISTRIBUTION
++    OF THE PROGRAM CONSTITUTES RECIPIENT'S ACCEPTANCE OF THIS AGREEMENT.
++
++1. DEFINITIONS
++
++"Contribution" means:
++
++  a) in the case of the initial Contributor, the initial content
++     Distributed under this Agreement, and
++
++  b) in the case of each subsequent Contributor:
++     i) changes to the Program, and
++     ii) additions to the Program;
++  where such changes and/or additions to the Program originate from
++  and are Distributed by that particular Contributor. A Contribution
++  "originates" from a Contributor if it was added to the Program by
++  such Contributor itself or anyone acting on such Contributor's behalf.
++  Contributions do not include changes or additions to the Program that
++  are not Modified Works.
++
++"Contributor" means any person or entity that Distributes the Program.
++
++"Licensed Patents" mean patent claims licensable by a Contributor which
++are necessarily infringed by the use or sale of its Contribution alone
++or when combined with the Program.
++
++"Program" means the Contributions Distributed in accordance with this
++Agreement.
++
++"Recipient" means anyone who receives the Program under this Agreement
++or any Secondary License (as applicable), including Contributors.
++
++"Derivative Works" shall mean any work, whether in Source Code or other
++form, that is based on (or derived from) the Program and for which the
++editorial revisions, annotations, elaborations, or other modifications
++represent, as a whole, an original work of authorship.
++
++"Modified Works" shall mean any work in Source Code or other form that
++results from an addition to, deletion from, or modification of the
++contents of the Program, including, for purposes of clarity any new file
++in Source Code form that contains any contents of the Program. Modified
++Works shall not include works that contain only declarations,
++interfaces, types, classes, structures, or files of the Program solely
++in each case in order to link to, bind by name, or subclass the Program
++or Modified Works thereof.
++
++"Distribute" means the acts of a) distributing or b) making available
++in any manner that enables the transfer of a copy.
++
++"Source Code" means the form of a Program preferred for making
++modifications, including but not limited to software source code,
++documentation source, and configuration files.
++
++"Secondary License" means either the GNU General Public License,
++Version 2.0, or any later versions of that license, including any
++exceptions or additional permissions as identified by the initial
++Contributor.
++
++2. GRANT OF RIGHTS
++
++  a) Subject to the terms of this Agreement, each Contributor hereby
++  grants Recipient a non-exclusive, worldwide, royalty-free copyright
++  license to reproduce, prepare Derivative Works of, publicly display,
++  publicly perform, Distribute and sublicense the Contribution of such
++  Contributor, if any, and such Derivative Works.
++
++  b) Subject to the terms of this Agreement, each Contributor hereby
++  grants Recipient a non-exclusive, worldwide, royalty-free patent
++  license under Licensed Patents to make, use, sell, offer to sell,
++  import and otherwise transfer the Contribution of such Contributor,
++  if any, in Source Code or other form. This patent license shall
++  apply to the combination of the Contribution and the Program if, at
++  the time the Contribution is added by the Contributor, such addition
++  of the Contribution causes such combination to be covered by the
++  Licensed Patents. The patent license shall not apply to any other
++  combinations which include the Contribution. No hardware per se is
++  licensed hereunder.
++
++  c) Recipient understands that although each Contributor grants the
++  licenses to its Contributions set forth herein, no assurances are
++  provided by any Contributor that the Program does not infringe the
++  patent or other intellectual property rights of any other entity.
++  Each Contributor disclaims any liability to Recipient for claims
++  brought by any other entity based on infringement of intellectual
++  property rights or otherwise. As a condition to exercising the
++  rights and licenses granted hereunder, each Recipient hereby
++  assumes sole responsibility to secure any other intellectual
++  property rights needed, if any. For example, if a third party
++  patent license is required to allow Recipient to Distribute the
++  Program, it is Recipient's responsibility to acquire that license
++  before distributing the Program.
++
++  d) Each Contributor represents that to its knowledge it has
++  sufficient copyright rights in its Contribution, if any, to grant
++  the copyright license set forth in this Agreement.
++
++  e) Notwithstanding the terms of any Secondary License, no
++  Contributor makes additional grants to any Recipient (other than
++  those set forth in this Agreement) as a result of such Recipient's
++  receipt of the Program under the terms of a Secondary License
++  (if permitted under the terms of Section 3).
++
++3. REQUIREMENTS
++
++3.1 If a Contributor Distributes the Program in any form, then:
++
++  a) the Program must also be made available as Source Code, in
++  accordance with section 3.2, and the Contributor must accompany
++  the Program with a statement that the Source Code for the Program
++  is available under this Agreement, and informs Recipients how to
++  obtain it in a reasonable manner on or through a medium customarily
++  used for software exchange; and
++
++  b) the Contributor may Distribute the Program under a license
++  different than this Agreement, provided that such license:
++     i) effectively disclaims on behalf of all other Contributors all
++     warranties and conditions, express and implied, including
++     warranties or conditions of title and non-infringement, and
++     implied warranties or conditions of merchantability and fitness
++     for a particular purpose;
++
++     ii) effectively excludes on behalf of all other Contributors all
++     liability for damages, including direct, indirect, special,
++     incidental and consequential damages, such as lost profits;
++
++     iii) does not attempt to limit or alter the recipients' rights
++     in the Source Code under section 3.2; and
++
++     iv) requires any subsequent distribution of the Program by any
++     party to be under a license that satisfies the requirements
++     of this section 3.
++
++3.2 When the Program is Distributed as Source Code:
++
++  a) it must be made available under this Agreement, or if the
++  Program (i) is combined with other material in a separate file or
++  files made available under a Secondary License, and (ii) the initial
++  Contributor attached to the Source Code the notice described in
++  Exhibit A of this Agreement, then the Program may be made available
++  under the terms of such Secondary Licenses, and
++
++  b) a copy of this Agreement must be included with each copy of
++  the Program.
++
++3.3 Contributors may not remove or alter any copyright, patent,
++trademark, attribution notices, disclaimers of warranty, or limitations
++of liability ("notices") contained within the Program from any copy of
++the Program which they Distribute, provided that Contributors may add
++their own appropriate notices.
++
++4. COMMERCIAL DISTRIBUTION
++
++Commercial distributors of software may accept certain responsibilities
++with respect to end users, business partners and the like. While this
++license is intended to facilitate the commercial use of the Program,
++the Contributor who includes the Program in a commercial product
++offering should do so in a manner which does not create potential
++liability for other Contributors. Therefore, if a Contributor includes
++the Program in a commercial product offering, such Contributor
++("Commercial Contributor") hereby agrees to defend and indemnify every
++other Contributor ("Indemnified Contributor") against any losses,
++damages and costs (collectively "Losses") arising from claims, lawsuits
++and other legal actions brought by a third party against the Indemnified
++Contributor to the extent caused by the acts or omissions of such
++Commercial Contributor in connection with its distribution of the Program
++in a commercial product offering. The obligations in this section do not
++apply to any claims or Losses relating to any actual or alleged
++intellectual property infringement. In order to qualify, an Indemnified
++Contributor must: a) promptly notify the Commercial Contributor in
++writing of such claim, and b) allow the Commercial Contributor to control,
++and cooperate with the Commercial Contributor in, the defense and any
++related settlement negotiations. The Indemnified Contributor may
++participate in any such claim at its own expense.
++
++For example, a Contributor might include the Program in a commercial
++product offering, Product X. That Contributor is then a Commercial
++Contributor. If that Commercial Contributor then makes performance
++claims, or offers warranties related to Product X, those performance
++claims and warranties are such Commercial Contributor's responsibility
++alone. Under this section, the Commercial Contributor would have to
++defend claims against the other Contributors related to those performance
++claims and warranties, and if a court requires any other Contributor to
++pay any damages as a result, the Commercial Contributor must pay
++those damages.
++
++5. NO WARRANTY
++
++EXCEPT AS EXPRESSLY SET FORTH IN THIS AGREEMENT, AND TO THE EXTENT
++PERMITTED BY APPLICABLE LAW, THE PROGRAM IS PROVIDED ON AN "AS IS"
++BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, EITHER EXPRESS OR
++IMPLIED INCLUDING, WITHOUT LIMITATION, ANY WARRANTIES OR CONDITIONS OF
++TITLE, NON-INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR
++PURPOSE. Each Recipient is solely responsible for determining the
++appropriateness of using and distributing the Program and assumes all
++risks associated with its exercise of rights under this Agreement,
++including but not limited to the risks and costs of program errors,
++compliance with applicable laws, damage to or loss of data, programs
++or equipment, and unavailability or interruption of operations.
++
++6. DISCLAIMER OF LIABILITY
++
++EXCEPT AS EXPRESSLY SET FORTH IN THIS AGREEMENT, AND TO THE EXTENT
++PERMITTED BY APPLICABLE LAW, NEITHER RECIPIENT NOR ANY CONTRIBUTORS
++SHALL HAVE ANY LIABILITY FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
++EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING WITHOUT LIMITATION LOST
++PROFITS), HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OR DISTRIBUTION OF THE PROGRAM OR THE
++EXERCISE OF ANY RIGHTS GRANTED HEREUNDER, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGES.
++
++7. GENERAL
++
++If any provision of this Agreement is invalid or unenforceable under
++applicable law, it shall not affect the validity or enforceability of
++the remainder of the terms of this Agreement, and without further
++action by the parties hereto, such provision shall be reformed to the
++minimum extent necessary to make such provision valid and enforceable.
++
++If Recipient institutes patent litigation against any entity
++(including a cross-claim or counterclaim in a lawsuit) alleging that the
++Program itself (excluding combinations of the Program with other software
++or hardware) infringes such Recipient's patent(s), then such Recipient's
++rights granted under Section 2(b) shall terminate as of the date such
++litigation is filed.
++
++All Recipient's rights under this Agreement shall terminate if it
++fails to comply with any of the material terms or conditions of this
++Agreement and does not cure such failure in a reasonable period of
++time after becoming aware of such noncompliance. If all Recipient's
++rights under this Agreement terminate, Recipient agrees to cease use
++and distribution of the Program as soon as reasonably practicable.
++However, Recipient's obligations under this Agreement and any licenses
++granted by Recipient relating to the Program shall continue and survive.
++
++Everyone is permitted to copy and distribute copies of this Agreement,
++but in order to avoid inconsistency the Agreement is copyrighted and
++may only be modified in the following manner. The Agreement Steward
++reserves the right to publish new versions (including revisions) of
++this Agreement from time to time. No one other than the Agreement
++Steward has the right to modify this Agreement. The Eclipse Foundation
++is the initial Agreement Steward. The Eclipse Foundation may assign the
++responsibility to serve as the Agreement Steward to a suitable separate
++entity. Each new version of the Agreement will be given a distinguishing
++version number. The Program (including Contributions) may always be
++Distributed subject to the version of the Agreement under which it was
++received. In addition, after a new version of the Agreement is published,
++Contributor may elect to Distribute the Program (including its
++Contributions) under the new version.
++
++Except as expressly stated in Sections 2(a) and 2(b) above, Recipient
++receives no rights or licenses to the intellectual property of any
++Contributor under this Agreement, whether expressly, by implication,
++estoppel or otherwise. All rights in the Program not expressly granted
++under this Agreement are reserved. Nothing in this Agreement is intended
++to be enforceable by any entity that is not a Contributor or Recipient.
++No third-party beneficiary rights are created under this Agreement.
++
++Exhibit A - Form of Secondary Licenses Notice
++
++"This Source Code may also be made available under the following
++Secondary Licenses when the conditions for such availability set forth
++in the Eclipse Public License, v. 2.0 are satisfied: GNU General Public
++License as published by the Free Software Foundation, either version 2
++of the License, or (at your option) any later version, with the GNU
++Classpath Exception which is available at
++https://www.gnu.org/software/classpath/license.html."
++
++  Simply including a copy of this Agreement, including this Exhibit A
++  is not sufficient to license the Source Code under Secondary Licenses.
++
++  If it is not possible or desirable to put the notice in a particular
++  file, then You may include the notice in a location (such as a LICENSE
++  file in a relevant directory) where a recipient would be likely to
++  look for such a notice.
++
++  You may add additional accurate notices of copyright ownership.
+diff --git a/README.md b/README.md
+index e64cd28..adc6eff 100644
+--- a/README.md
++++ b/README.md
+@@ -1,2 +1,44 @@
+-# gitAgent
+-Git agent to assist in various git repository related tasks
++# git-agent
++
++FIXME: description
++
++## Installation
++
++Download from http://example.com/FIXME.
++
++## Usage
++
++FIXME: explanation
++
++    $ java -jar git-agent-0.1.0-standalone.jar [args]
++
++## Options
++
++FIXME: listing of options this app accepts.
++
++## Examples
++
++...
++
++### Bugs
++
++...
++
++### Any Other Sections
++### That You Think
++### Might be Useful
++
++## License
++
++Copyright © 2024 FIXME
++
++This program and the accompanying materials are made available under the
++terms of the Eclipse Public License 2.0 which is available at
++http://www.eclipse.org/legal/epl-2.0.
++
++This Source Code may also be made available under the following Secondary
++Licenses when the conditions for such availability set forth in the Eclipse
++Public License, v. 2.0 are satisfied: GNU General Public License as published by
++the Free Software Foundation, either version 2 of the License, or (at your
++option) any later version, with the GNU Classpath Exception which is available
++at https://www.gnu.org/software/classpath/license.html.
+diff --git a/doc/intro.md b/doc/intro.md
+new file mode 100644
+index 0000000..dac94b0
+--- /dev/null
++++ b/doc/intro.md
+@@ -0,0 +1,3 @@
++# Introduction to git-agent
++
++TODO: write [great documentation](http://jacobian.org/writing/what-to-write/)
+diff --git a/project.clj b/project.clj
+new file mode 100644
+index 0000000..32c5381
+--- /dev/null
++++ b/project.clj
+@@ -0,0 +1,10 @@
++(defproject git-agent "0.1.0-SNAPSHOT"
++  :description "FIXME: write description"
++  :url "http://example.com/FIXME"
++  :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
++            :url "https://www.eclipse.org/legal/epl-2.0/"}
++  :dependencies [[org.clojure/clojure "1.10.3"]]
++  :main ^:skip-aot git-agent.core
++  :target-path "target/%s"
++  :profiles {:uberjar {:aot :all
++                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
+diff --git a/src/git_agent/core.clj b/src/git_agent/core.clj
+new file mode 100644
+index 0000000..e941bd4
+--- /dev/null
++++ b/src/git_agent/core.clj
+@@ -0,0 +1,7 @@
++(ns git-agent.core
++  (:gen-class))
++
++(defn -main
++  "I don't do a whole lot ... yet."
++  [& args]
++  (println "Hello, World!"))
+diff --git a/test/git_agent/core_test.clj b/test/git_agent/core_test.clj
+new file mode 100644
+index 0000000..ac495d1
+--- /dev/null
++++ b/test/git_agent/core_test.clj
+@@ -0,0 +1,7 @@
++(ns git-agent.core-test
++  (:require [clojure.test :refer :all]
++            [git-agent.core :refer :all]))
++
++(deftest a-test
++  (testing "FIXME, I fail."
++    (is (= 0 1))))
+
+commit ebda7603203e8ab99935e5b2b6ce78bb4f6f08f2
+Author: Aniket Hendre <hendre.ani@gmail.com>
+Date:   Fri May 10 19:12:16 2024 +0530
+
+    Initial commit
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..a4cb69a
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,14 @@
++pom.xml
++pom.xml.asc
++*.jar
++*.class
++/lib/
++/classes/
++/target/
++/checkouts/
++.lein-deps-sum
++.lein-repl-history
++.lein-plugins/
++.lein-failures
++.nrepl-port
++.cpcache/
+diff --git a/LICENSE b/LICENSE
+new file mode 100644
+index 0000000..76b773c
+--- /dev/null
++++ b/LICENSE
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2024 Aniket Hendre
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..e64cd28
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,2 @@
++# gitAgent
++Git agent to assist in various git repository related tasks

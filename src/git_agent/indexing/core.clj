@@ -1,6 +1,8 @@
 (ns git-agent.indexing.core
   (:require [clojure.java.shell :refer [sh]]
             [clojure.string :as cs]
+            [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as rs]
             [wkok.openai-clojure.api :as api]))
 
 (defn git-log
@@ -49,3 +51,65 @@
   (-> (api/create-embedding {:model "text-embedding-ada-002" :input text}
                             {:api-key ""})
       (get-in [:data 0 :embedding] [])))
+
+(def db {:dbtype "postgres"
+         :dbname "gitagent"
+         :user "git_agent"
+         :password "wildmushroom"
+         :host "localhost"
+         :port "5432"})
+
+(def ds (jdbc/get-datasource db))
+
+(def db-opts (jdbc/with-options ds {:builder-fn rs/as-unqualified-lower-maps}))
+
+(defn create-gitlog-table!
+  []
+  (jdbc/execute!
+   db-opts
+   ["CREATE TABLE gitlog (
+      id bigserial PRIMARY KEY,
+      embedding vector(1536),
+      commit text
+     )"]))
+
+(defn drop-gitlog-table
+  []
+  (jdbc/execute!
+   db-opts
+   ["DROP TABLE gitlog"]))
+
+(defn exec-insert-commit-log!
+  [commit embedding-str]
+  (let [sql-stmt (format "INSERT INTO gitlog (embedding, commit)
+                          VALUES ('[%s]', '%s');"
+                         embedding-str
+                         commit)]
+    (jdbc/execute!
+     db-opts
+     [sql-stmt])))
+
+(defn insert-commit-log!
+  [commit]
+  (->> commit
+       create-embedding
+       (cs/join ", ")
+       (exec-insert-commit-log! commit)))
+
+(defn exec-nearest-neighbors-by-l2-distance
+  [k query]
+  (let [sql-stmt (format "SELECT embedding, commit FROM gitlog
+                          ORDER BY embedding <-> '[%s]'
+                          limit %s;"
+                         query
+                         k)]
+    (jdbc/execute!
+     db-opts
+     [sql-stmt])))
+
+(defn query-gitlog
+  [query k]
+  (->> query
+       create-embedding
+       (cs/join ", ")
+       (exec-nearest-neighbors-by-l2-distance k)))
