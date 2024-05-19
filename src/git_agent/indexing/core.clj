@@ -82,12 +82,11 @@
 (defn exec-insert-commit-log!
   [commit embedding-str]
   (let [sql-stmt (format "INSERT INTO gitlog (embedding, commit)
-                          VALUES ('[%s]', '%s');"
-                         embedding-str
-                         commit)]
+                          VALUES ('[%s]', ?);"
+                         embedding-str)]
     (jdbc/execute!
      db-opts
-     [sql-stmt])))
+     [sql-stmt commit])))
 
 (defn insert-commit-log!
   [commit]

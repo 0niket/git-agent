@@ -73,6 +73,7 @@ $ pgcli -h localhost -p 5432 -U git_agent -d gitagent
 1. Add github actions
 2. Store commit id instead of storing whole commit in DB.
 3. Refactor indexing ns
+4. Use api-key from env variables
 
 ## License
 
