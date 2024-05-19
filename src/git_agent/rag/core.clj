@@ -1,8 +1,7 @@
 (ns git-agent.rag.core
   (:require [wkok.openai-clojure.api :as api]
             [git-agent.indexing.core :as indexing]
-            [clojure.string :as cs]
-            [next.jdbc.result-set :as rs]))
+            [clojure.string :as cs]))
 
 (def prompt-path "./resources/prompts/rag.txt")
 
